@@ -1,4 +1,5 @@
-import { Bot, InlineKeyboard, GrammyError, HttpError } from "grammy";
+import { Bot, InlineKeyboard, GrammyError, HttpError, webhookCallback } from "grammy";
+import { createServer } from "http";
 
 const bot = new Bot("8365665338:AAH4UhL1VDBpOrFJSI8iBBKoqEkV6DYYLHk");
 const CHANNEL_ID = "@slidemind";
@@ -46,7 +47,7 @@ bot.command("start", async (ctx) => {
       `• 🎨 <b>Premium</b> dizaynlardan foydalanishingiz\n` +
       `• 📄 <b>PPTX/PDF</b> formatida yuklab olishingiz mumkin\n\n` +
       `💻 Bizning sayt: <a href="https://slidemind.uz">slidemind.uz</a>\n\n` +
-      `👇 Ilovani ishga tushirish uchun quyidagi tugmani bosing`,
+      `👇 Ilovani ishga tushirish uchun quyidagi tugmani bosing:`,
       {
         reply_markup: keyboard,
         parse_mode: "HTML",
@@ -93,7 +94,7 @@ bot.callbackQuery("check_subscription", async (ctx) => {
       `<b>Tabriklaymiz!</b> 🎉\n\n` +
       `Siz muvaffaqiyatli ro'yxatdan o'tdingiz. Endi barcha imkoniyatlar siz uchun ochiq! ✨\n\n` +
       `💻 Bizning sayt: <a href="https://slidemind.uz">slidemind.uz</a>\n\n` +
-      `👇 Taqdimot yaratishni boshlash uchun quyidagi tugmani bosing`,
+      `👇 Taqdimot yaratishni boshlash uchun quyidagi tugmani bosing:`,
       {
         reply_markup: keyboard,
         parse_mode: "HTML",
@@ -142,5 +143,27 @@ bot.catch((err) => {
   }
 });
 
-console.log("SlidesMind Bot is running...");
-bot.start();
+// --- Serverless / Webhook Configuration ---
+
+const PORT = process.env.PORT || 3000;
+const DOMAIN = process.env.DOMAIN; // Your deployment domain (e.g., https://my-bot.zeabur.app)
+
+if (process.env.NODE_ENV === "production" || process.env.VERCEL || DOMAIN) {
+  // Production: Use Webhooks (Serverless)
+  console.log(`Starting in WEBHOOK mode on port ${PORT}`);
+  
+  const server = createServer(webhookCallback(bot, "http"));
+
+  server.listen(PORT, async () => {
+    console.log(`Server listening on port ${PORT}`);
+    if (DOMAIN) {
+      const webhookUrl = `${DOMAIN}/`; // Some platforms handle routing differently, often just root
+      console.log(`Setting webhook to: ${webhookUrl}`);
+      await bot.api.setWebhook(webhookUrl);
+    }
+  });
+} else {
+  // Development: Use Long Polling
+  console.log("Starting in LONG POLLING mode");
+  bot.start();
+}
